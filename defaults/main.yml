@@ -1,2 +1,5 @@
 ---
 # defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_root_dir: "~/.dotfiles"

@@ -1,2 +1,10 @@
 ---
 # tasks file for mydotfiles
+# - name: "Debug: {{ ansible_env.HOME }}/{{ dotfiles_root_dir }}"
+#   debug:
+#     msg: "Dotfiles dir {{ dotfiles_root_dir }}"
+- name: "Root dotfiles directory dotfiles_root_dir exists"
+  file:
+    path: "{{ dotfiles_root_dir }}"
+    mode: 0750
+    state: directory

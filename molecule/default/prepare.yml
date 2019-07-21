@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  tasks:
+  - name: Git is installed
+    package:
+      name: git
+      state: present
