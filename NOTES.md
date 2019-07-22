@@ -701,8 +701,446 @@ Exit the instance with `exit`, `molecule verify` to verify that the assertion do
 Go back to `./tasks/dotfile.yml` because this is something that needs to be done for each dotfile set.
 
 ```yaml
+---
+- name: 'Clone {{ item.key }} dotfiles'
+  git:
+    repo: '{{ item.value.repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ item.value.subdir_name }}'
+
+- name: 'Set {{ item.key }} remote to use SSH remote url'
+  shell: >
+    git remote set-url origin 
+    '{{ item.value.repo_url_ssh }}'
+  args:
+    chdir: '{{ dotfiles_root_dir }}/{{ item.value.subdir_name }}'
 ```
 
+This adds another important ansible module, the [shell][19]. Basically it just takes a string of a command to execute in the remote shell. It again uses the passed `item` variable that contains the configuration dictionary for this particular dotfile set and sets the git remote using `item.value.repo_url_ssh`. The `args` key is used with `shell` to specify any extra arguments to use on the shell, in this case the `chdir` directive that tells ansible where to run the shell command. The git command is simply `git remote set-url origin REPO_URL`. Leaving us with a new default variable to add in `./defaults/main.yml`
+
+```yaml
+---
+# defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_root_dir: '~/.dotfiles'
+dotfiles_url_prefix: 'https://github.com/marcus-grant'
+dotfiles_url_prefix_ssh: 'git@github.com:marcus-grant'
+# dotfiles_url_prefix: 'URL'
+
+dotfiles:
+  bash:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-bash'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-bash'
+    subdir_name: 'bash'
+  vim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-vim'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-vim'
+    subdir_name: 'vim'
+  neovim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-neovim'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-neovim'
+    subdir_name: 'neovim'
+  tmux:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-tmux'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-tmux'
+    subdir_name: 'tmux'
+  alacritty:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-alacritty'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-alacritty'
+    subdir_name: 'alacritty'
+  i3:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-i3'
+    repo_url_ssh: '{{ dotfiles_url_prefix_ssh }}/dots-i3'
+    subdir_name: 'i3'
+```
+
+A new scalar variable, `dotfiles_url_prefix_ssh` is defined to provide the base url for the same git repository, but using ssh. Then for every `dotfile` configuration dictionary the key `repo_url_ssh` is added that combines this with the suffix of that dotfile repository's URL. This is a lot of repitition and is a good candidate for refactoring when it comes to that TDD phase. Don't worry about that right now, use `molecule converge` & `molecule verify` to configrm that these changes to the role work, it should.
+
+Now let's look at a refactor, because here both the variables and the test cases could use one.
+
+First, the default variables. Two problems are apparent, there's a lot of code duplication and variable definitions should try and avoid dependency on other variables if possilbe, especially as role defaults. Let's start with this change of the `./defaults/main.yml` file.
+
+```yaml
+---
+# defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_local_root_dir: '~/.dotfiles'
+dotfiles_url_prefix_https: 'https://github.com/marcus-grant'
+dotfiles_url_prefix_ssh: 'git@github.com:marcus-grant'
+# dotfiles_url_prefix: 'URL'
+
+dotfiles:
+  bash:
+    repo_name: 'dots-bash'
+    local_subdir_name: 'bash'
+  vim:
+    repo_name: 'dots-vim'
+    local_subdir_name: 'vim'
+  neovim:
+    repo_name: 'dots-neovim'
+    local_subdir_name: 'neovim'
+  tmux:
+    repo_name: 'dots-tmux'
+    local_subdir_name: 'tmux'
+  alacritty:
+    repo_name: 'dots-alacritty'
+    local_subdir_name: 'alacritty'
+  i3:
+    repo_name: 'dots-i3'
+    local_subdir_name: 'i3'
+```
+
+Wow, much cleaner. There's now two `dotfiles_url_prefix` variables, one for an HTTPS and one for SSH URLs. Then each configuration set for each dotfile now has a `repo_name` variable instead of a templated string for the full URL. From these changes in the default variables, now it's possible to take all literal values and do all the previous work by changing how the variables are fed to the tasks. Let's change `./tasks/dotfile.yml` to reflect these changes
+
+```yaml
+---
+- name: 'transform {{ item.key }} variables for current dotfile set'
+  set_fact:
+    current_dotfile_local_dir: >-
+      {{ dotfiles_local_root_dir }}/{{ item.value.local_subdir_name }}
+    current_dotfile_repo_url_http: >-
+      {{ dotfiles_url_prefix_https }}/{{ item.value.repo_name }}
+    current_dotfile_repo_url_ssh: >-
+      {{ dotfiles_url_prefix_ssh }}/{{ item.value.repo_name }}
+
+# - debug:
+#     msg: >
+#       current_dotfile_local_dir: {{ current_dotfile_local_dir }}
+#       current_dotfile_repo_url_http: {{ current_dotfile_repo_url_http }}
+#       current_dotfile_repo_url_ssh: {{ current_dotfile_repo_url_ssh }}
+
+- name: 'gather facts about {{ item.key }} local subdirectory'
+  stat:
+    path: '{{ current_dotfile_local_dir }}'
+  register: dot_local
+
+- name: 'clone {{ item.key }} dotfiles'
+  when: (not dot_local.stat.isdir is defined) or (not dot_local.stat.isdir)
+  git:
+    repo: '{{ current_dotfile_repo_url_http }}'
+    dest: '{{ current_dotfile_local_dir }}'
+
+- name: 'gather facts about {{ item.key }} remote repository'
+  shell: 'git remote -v'
+  args:
+    chdir: '{{ current_dotfile_local_dir }}'
+  register: dot_remote
+  changed_when: false # normally registring on shell marks task as changed
+
+- name: 'set {{ item.key }} remote to use SSH remote url'
+  when: dotfiles_url_prefix_ssh not in dot_remote.stdout
+  shell: >-
+    git remote set-url origin 
+    '{{ current_dotfile_repo_url_ssh }}'
+  args:
+    chdir: '{{ current_dotfile_local_dir }}'
+```
+
+A lot has changed here. First and foremost, changing the variables means trying to even run the role with `molecule converge` will fail to run due to the changes. Let's list the changes:
+
+- `set_fact` gets used to create temporary variables `current_dotfile_`
+    - These are mostly there to avoid repeating several long string templates
+    - The tasks below will then access these templated strings through one variable
+- `>-`: is a **folding scalar** and they are used to fold the below lines into one long one
+- `stat`: is [another module][20] that gets information about a filesystem location
+    - Here it is used to see if the `path` to the local subdirectory has somethin in it
+    - And if it is a directory as is expected
+    - This comes up becuase if you run the playbook you'll notice that the clone tasks are still cloning even though the playbook was run before
+    - Using `when` as a conditional for the clone task using `dot_local` skips the clone task when a directory is there already
+- `shell`: gets used to check the status of the cloned repo's remote & to change it
+    - `when`: is used to only use the `shell` command if the previous one discovers that it is still using the HTTPS URL
+    - `args`: gets used to call the shell command at the local subdirectory
+    - `changed_when`: is used because registering a shell command marks the task has changing something
+        - This creates noise in the output of the role
+        - Using `changed_when: false` supresses these task messages
+
+These changes together not only clean up the code, but deals with fixing the role in a way that it isn't needlessly repeating tasks and reporting noise to ansible. But most importantly this fix now means that a variable number of sets of dotfile repository URLs and local subdirectories can be defined in the very likely case their needs are different than mine. This hopefully highlights the importance of the refactoring phase. Hopefully `molecule converge && molecule verify` passes its test allowing us to move onto the last behavior to cycle through.
+
+### The Last Role Behavior - Linking the Dotfiles
+
+Dotfiles being cloned into one repository isn't terribly useful by itself, for the programs expecting the configurations to use them they need to be linked to paths they expect. Start the red phase by editing `./molecule/default/tests/test_default.py`.
+
+```python
+# Test that all the expected files are linked correctly
+def test_dotfiles_links(host):
+    # first create the dotfiles path
+    home_dir = host.user().home
+    dots_dir = home_dir + '/.dotfiles'
+    # create an array of tuples for each dotfile set's links
+    bash_links = [
+        (dots_dir + '/bash/bashrc', home_dir + '/.bashrc'),
+        (dots_dir + '/bash/profile', home_dir + '/.profile'),
+        (dots_dir + '/bash/bash_profile', home_dir + '/.bash_profile'),
+    ]
+    vim_links = [
+        (dots_dir + '/vim', home_dir + '/.vim'),
+        (dots_dir + '/vim/vimrc', home_dir + '/.vimrc'),
+    ]
+    neovim_links = [(dots_dir + '/neovim', home_dir + '/.config/nvim')]
+    tmux_links = [
+        (dots_dir + '/tmux/.tmux.conf', home_dir + '/.tmux.conf'),
+        (dots_dir + '/tmux/.tmux.conf.local', home_dir + '/.tmux.conf.local'),
+    ]
+    alacritty_links = [(dots_dir + '/alacritty', home_dir + '/.config/alacritty')]
+    i3_links = [(dots_dir + '/i3', home_dir + '/.config/i3')]
+    # combine them into a single array to iterate through
+    dot_sets = [
+        bash_links, vim_links, neovim_links,
+        tmux_links, alacritty_links, i3_links,
+    ]
+    # now iterate through it, checking 
+    for links in dot_sets:
+        # iterate through the list of links in each dot set
+        for link in links:
+            # pull out the link_loc & link_dest to shorten the asserts
+            link_src = host.file(link[0])
+            link_dest = host.file(link[1])
+            # assert link source exists
+            assert link_src.exists
+            # is link source a file or directory?
+            assert link_src.is_file or link_src.is_directory
+            # does link itself exist?
+            assert link_dest.exists
+            # is it a symlink?
+            assert link_dest.is_symlink
+            # finally, does the link location point to link source?
+            assert link_dest.linked_to == link_src
+```
+
+Because of how many links there are due to some set of dotfiles having more than one link to be functional *(cough, bash, cough)* this test function is more complex. But because the upcoming changes has so many implications on the test instance, it's worht it. And it's a lot of declarative definitions and not that much complexity when it comes to testing. Mostly it is just setting up arrays of links for each dotfile set. It then iterates through all of the dot sets' links and asserts that they are proper links. Read the comments for more details.
+
+Before moving onto the green phase to implement these expected outcomes, run `molecule converge && molecule verify`, it should fail. Then `molecule login` and create at least one of the expected links using `ln -sf ~/.dotfiles/bash/bashrc ~/.bashrc` and verify again, and if all is well with the test function, a different link assertion should be failing than the last verification fail. If that's the case then the test function should be working.
+
+Fortunately, the role changes are much simpler. Edit `./tasks/dotfile.yml`
+
+```yaml
+# ... previous tasks
+
+- include: link_dotfiles.yml
+  with_items: "{{ item.value.links }}"
+  loop_control:
+    loop_var: dot_link
+
+# end of file
+```
+
+Again, a looping task is being created. It will take a new dotfile list item property `links`, which is itself a list of `links`. This time each list item is passed using `loop_var` as variable `dot_link`. These `dot_links` are then passed to a new task file `dotfile_links.yml` individually to handle the actual lnking of these files, like below:
+
+```yaml
+---
+# links dotfiles sets defined in defaults as `dotfile`
+# assumed to be included using 'with_items' as a loop using variable 'dot_link'
+# the incoming variable should have item.link_loc & item.link_dest
+- name: 'link: {{ dot_link.src }} ~> {{ dot_link.dest }}'
+  # when
+  file:
+    src: '{{ dot_link.src }}'
+    dest: '{{ dot_link.dest }}'
+    state: link
+    force: true
+```
+
+Here each `dot_link` sent into the task is simply linked from `link.src` to `link.dest` as symlinks so that although all dotfiles are in one place, the programs that use them will think each link as the file it expects inside of `~/.dotfiles`.
+
+Now finally, edit the default variables in `./defaults/main.yml`:
+
+```yaml
+---
+# defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_local_root_dir: '~/.dotfiles'
+dotfiles_url_prefix_https: 'https://github.com/marcus-grant'
+dotfiles_url_prefix_ssh: 'git@github.com:marcus-grant'
+# dotfiles_url_prefix: 'URL'
+
+dotfiles:
+  bash:
+    repo_name: 'dots-bash'
+    local_subdir_name: 'bash'
+    links:
+      - { dest: '~/.bashrc', src: '~/.dotfiles/bash/bashrc' }
+      - { dest: '~/.profile', src: '~/.dotfiles/bash/profile' }
+      - { dest: '~/.bash_profile', src: '~/.dotfiles/bash/bash_profile' }
+  vim:
+    repo_name: 'dots-vim'
+    local_subdir_name: 'vim'
+    links:
+      - { dest: '~/.vim', src: '~/.dotfiles/vim' }
+      - { dest: '~/.vimrc', src: '~/.dotfiles/vim/vimrc' }
+  neovim:
+    repo_name: 'dots-neovim'
+    local_subdir_name: 'neovim'
+    links:
+      - { dest: '~/.config/nvim', src: '~/.dotfiles/neovim' }
+  tmux:
+    repo_name: 'dots-tmux'
+    local_subdir_name: 'tmux'
+    links:
+      - { dest: '~/.tmux.conf', src: '~/.dotfiles/tmux/.tmux.conf' }
+      - { dest: '~/.tmux.conf.local', src: '~/.dotfiles/tmux/.tmux.conf.local' }
+  alacritty:
+    repo_name: 'dots-alacritty'
+    local_subdir_name: 'alacritty'
+    links:
+      - { dest: '~/.config/alacritty', src: '~/.dotfiles/alacritty' }
+  i3:
+    repo_name: 'dots-i3'
+    local_subdir_name: 'i3'
+    links:
+      - { dest: '~/.config/i3', src: '~/.dotfiles/i3' }
+```
+
+Each dotfile set now gets an extra dictionary, itself containing a list called `links`. Each dotfile set can have a variable number of links that need to be manually entered for each file that must be linked. Organizing it this way ensures that any number of links can be specified and that their sources (`src`) and destination (`dest`) can be unique.
+
+Test this by running `molecule converge && molecule verify`... Oops...
+
+Many programs that use dotfiles expect to have a directory inside `~/.config`, and this role doesn't guarantee that directory exists. Fortunately it's easy to handle this with another task inside of `./tasks/main.yml`:
+
+```yaml
+# ... previous tasks are ^^^^ up here
+# this guarantees ~/.config exists
+- name: ~/.config directory exists
+  file:
+    path: '~/.config'
+    state: directory
+    mode: 0700
+
+# last task
+- include: dotfile.yml
+  with_items: "{{ dotfiles_config_list }}"
+```
+
+Test again by running `molecule converge && molecule verify`... phew. That should work now. Then let's go through the final refactoring phase. The green phase was relatively simple in changes to the role, there aren't many places to improve so let's focus on cleaning up the test file `./molecule/default/tests/test_default.py`.
+
+**NOTE THIS STILL NEEDS FURTHER REFACTORING BEFORE PUBLISHING ARTICLE**
+```python
+import os
+
+import testinfra.utils.ansible_runner
+
+testinfra_hosts = testinfra.utils.ansible_runner.AnsibleRunner(
+    os.environ['MOLECULE_INVENTORY_FILE']).get_hosts('all')
+
+
+# The default first test created by molecule
+def test_hosts_file(host):
+    f = host.file('/etc/hosts')
+
+    assert f.exists
+    assert f.user == 'root'
+    assert f.group == 'root'
+
+# helper function to get home directory from host
+def home_dir(host):
+    return host.user().home
+
+# helper to get dotfiles directory from host
+def dots_dir(host):
+    return host.file(home_dir(host) + '/.dotfiles')
+
+
+# map all of these datastructures of expected values into one
+# dot_sets_expected_values = zip(dot_subdirs, dot_links)
+# Our First test case checks that our dotfile root directory exists
+def test_dotfiles_root_directory_exists(host):
+    # check that *something* exists @ ~/.dotfiles
+    assert dots_dir(host).exists
+    # check that something is actually a directory
+    assert dots_dir(host).is_directory
+
+
+# Test that files all git repositories are correctly downloaded
+def test_dotfiles_subdirectories_exist(host):
+    # first create the dotfiles path
+    dots_dir = host.user().home + '/.dotfiles'
+    # first create an array of strings with every expected subdirectory name
+    dot_subdirs = [
+        'bash',
+        'vim',
+        'neovim',
+        'tmux',
+        'alacritty',
+        'i3',
+    ]
+    # now iterate through each expected subdirectory and assert their existence
+    for subdir_name in dot_subdirs:
+        dot_subdir = dots_dir + '/' + subdir_name
+        assert host.file(dot_subdir).exists
+        assert host.file(dot_subdir).is_directory
+
+# Do all the cloned repositories have ssh remote origins?
+def test_dotfiles_remote_origin_uses_ssh(host):
+    # first create the dotfiles path
+    dots_dir = host.user().home + '/.dotfiles'
+    # create an array of strings with all expected subdirectory names
+    dot_subdirs = [
+        'bash',
+        'vim',
+        'neovim',
+        'tmux',
+        'alacritty',
+        'i3',
+    ]
+    # map all of the subdirectory names to be full paths using dots_dir
+    dot_dirs_iter = map(lambda x: '{}/{}'.format(dots_dir, x), dot_subdirs)
+    # iterate through all the paths to check if it has an ssh remote
+    for dot_dir in dot_dirs_iter:
+        # first format the command string to be used
+        cmd = host.run('cd {} && git remote -v'.format(dot_dir))
+        # first check that no error occured in running the command
+        assert cmd.rc == 0
+        # then check that in at least one of the lines is origin and a ssh git address
+        assert 'origin' in cmd.stdout
+        assert 'git@github.com' in cmd.stdout
+
+# Test that all the expected files are linked correctly
+def test_dotfiles_links(host):
+    # first create the dotfiles path
+    home_dir = host.user().home
+    dots_dir = home_dir + '/.dotfiles'
+    # create an array of tuples for each dotfile set's links
+    bash_links = [
+        (dots_dir + '/bash/bashrc', home_dir + '/.bashrc'),
+        (dots_dir + '/bash/profile', home_dir + '/.profile'),
+        (dots_dir + '/bash/bash_profile', home_dir + '/.bash_profile'),
+    ]
+    vim_links = [
+        (dots_dir + '/vim', home_dir + '/.vim'),
+        (dots_dir + '/vim/vimrc', home_dir + '/.vimrc'),
+    ]
+    neovim_links = [(dots_dir + '/neovim', home_dir + '/.config/nvim')]
+    tmux_links = [
+        (dots_dir + '/tmux/.tmux.conf', home_dir + '/.tmux.conf'),
+        (dots_dir + '/tmux/.tmux.conf.local', home_dir + '/.tmux.conf.local'),
+    ]
+    alacritty_links = [(dots_dir + '/alacritty', home_dir + '/.config/alacritty')]
+    i3_links = [(dots_dir + '/i3', home_dir + '/.config/i3')]
+    # combine them into a single array to iterate through
+    dot_sets = [
+        bash_links, vim_links, neovim_links,
+        tmux_links, alacritty_links, i3_links,
+    ]
+    # now iterate through it, checking 
+    for links in dot_sets:
+        # iterate through the list of links in each dot set
+        for link in links:
+            # pull out the link_loc & link_dest to shorten the asserts
+            link_src = host.file(link[0])
+            link_dest = host.file(link[1])
+            # assert link source exists
+            assert link_src.exists
+            # is link source a file or directory?
+            assert link_src.is_file or link_src.is_directory
+            # does link itself exist?
+            assert link_dest.exists
+            # is it a symlink?
+            assert link_dest.is_symlink
+            # finally, does the link location point to link source?
+            assert link_dest.linked_to == link_src
+    
+```
 
 References
 ----------
@@ -725,6 +1163,8 @@ References
 16. [Ansible Documentation: Git Module][16]
 17. [Ansible Documentation: Debug Module][17]
 18. [Ansible Documentation: Loops][18]
+19. [Ansible Documentation: Shell Module][19]
+20. [Ansible Documentation: Stat Module][20]
 
 50. [Github: nvm-sh/nvm][50]
 
@@ -749,7 +1189,8 @@ References
 [16]: https://docs.ansible.com/ansible/latest/modules/git_module.html "Ansible Documentation: Git Module"
 [17]: https://docs.ansible.com/ansible/latest/modules/debug_module.html "Ansible Documentation: Debug Module"
 [18]: https://docs.ansible.com/ansible/latest/user_guide/playbooks_loops.html#iterating-over-a-dictionary "Ansible Documentation: Loops"
-
+[19]: https://docs.ansible.com/ansible/latest/modules/shell_module.html "Ansible Documentation: Shell Module"
+[20]: https://docs.ansible.com/ansible/latest/modules/stat_module.html "Ansible Documentation: Stat Module"
 
 [50]: https://github.com/nvm-sh/nvm "Github: nvm-sh/nvm"
 

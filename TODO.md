@@ -1,6 +1,7 @@
 TODOs
 =====
 
+- [ ] Add bool variable that determines if cloned repos should be using HTTPS or SSH
 - [ ] Remove NVM/Node tasks and variables to its own role
 - [ ] Consider creating a standardized place for custom binaries like `~/.local/bin` or `~/bin`
 - [ ] Consider downloading and untarring [junegunn/fzf-bin](http://bit.ly/2l7rgmv) instead to simplify conflicts with `GOPATH` & goenv

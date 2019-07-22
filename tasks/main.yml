@@ -1,10 +1,8 @@
 ---
 # tasks file for mydotfiles
-# - name: "Debug: {{ ansible_env.HOME }}/{{ dotfiles_root_dir }}"
-#   debug:
 - name: "root dotfiles directory dotfiles_root_dir exists"
   file:
-    path: '{{ dotfiles_root_dir }}'
+    path: '{{ dotfiles_local_root_dir }}'
     mode: 0750
     state: directory
 
@@ -17,6 +15,11 @@
 # - name: debug dotfiles_config_list
 #   debug: { msg: 'dotfiles_config_list: {{ dotfiles_config_list }}' }
 
+- name: ~/.config directory exists
+  file:
+    path: '~/.config'
+    state: directory
+    mode: 0700
+
 - include: dotfile.yml
   with_items: "{{ dotfiles_config_list }}"
-

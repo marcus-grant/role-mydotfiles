@@ -2,26 +2,43 @@
 # defaults file for mydotfiles
 
 # dotfiles root directory, where all seperate dotfiles subdirectories go
-dotfiles_root_dir: '~/.dotfiles'
-dotfiles_url_prefix: 'https://github.com/marcus-grant'
+dotfiles_local_root_dir: '~/.dotfiles'
+dotfiles_url_prefix_https: 'https://github.com/marcus-grant'
+dotfiles_url_prefix_ssh: 'git@github.com:marcus-grant'
 # dotfiles_url_prefix: 'URL'
 
 dotfiles:
   bash:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-bash'
-    subdir_name: 'bash'
+    repo_name: 'dots-bash'
+    local_subdir_name: 'bash'
+    links:
+      - { dest: '~/.bashrc', src: '~/.dotfiles/bash/bashrc' }
+      - { dest: '~/.profile', src: '~/.dotfiles/bash/profile' }
+      - { dest: '~/.bash_profile', src: '~/.dotfiles/bash/bash_profile' }
   vim:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-vim'
-    subdir_name: 'vim'
+    repo_name: 'dots-vim'
+    local_subdir_name: 'vim'
+    links:
+      - { dest: '~/.vim', src: '~/.dotfiles/vim' }
+      - { dest: '~/.vimrc', src: '~/.dotfiles/vim/vimrc' }
   neovim:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-neovim'
-    subdir_name: 'neovim'
+    repo_name: 'dots-neovim'
+    local_subdir_name: 'neovim'
+    links:
+      - { dest: '~/.config/nvim', src: '~/.dotfiles/neovim' }
   tmux:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-tmux'
-    subdir_name: 'tmux'
+    repo_name: 'dots-tmux'
+    local_subdir_name: 'tmux'
+    links:
+      - { dest: '~/.tmux.conf', src: '~/.dotfiles/tmux/.tmux.conf' }
+      - { dest: '~/.tmux.conf.local', src: '~/.dotfiles/tmux/.tmux.conf.local' }
   alacritty:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-alacritty'
-    subdir_name: 'alacritty'
+    repo_name: 'dots-alacritty'
+    local_subdir_name: 'alacritty'
+    links:
+      - { dest: '~/.config/alacritty', src: '~/.dotfiles/alacritty' }
   i3:
-    repo_url: '{{ dotfiles_url_prefix }}/dots-i3'
-    subdir_name: 'i3'
+    repo_name: 'dots-i3'
+    local_subdir_name: 'i3'
+    links:
+      - { dest: '~/.config/i3', src: '~/.dotfiles/i3' }

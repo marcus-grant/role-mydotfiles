@@ -1,0 +1,11 @@
+---
+# links dotfiles sets defined in defaults as `dotfile`
+# assumed to be included using 'with_items' as a loop using variable 'dot_link'
+# the incoming variable should have item.link_loc & item.link_dest
+- name: 'link: {{ dot_link.src }} ~> {{ dot_link.dest }}'
+  # when
+  file:
+    src: '{{ dot_link.src }}'
+    dest: '{{ dot_link.dest }}'
+    state: link
+    force: true

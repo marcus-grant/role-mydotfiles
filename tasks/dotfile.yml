@@ -1,8 +1,57 @@
 ---
-# - name: debug current dotfile configuration
-#   debug: { msg: '{{ item.key }}: {{ item.value.repo_url }}' }
+- name: 'transform {{ item.key }} variables for current dotfile set'
+  set_fact:
+    current_dotfile_local_dir: >-
+      {{ dotfiles_local_root_dir }}/{{ item.value.local_subdir_name }}
+    current_dotfile_repo_url_http: >-
+      {{ dotfiles_url_prefix_https }}/{{ item.value.repo_name }}
+    current_dotfile_repo_url_ssh: >-
+      {{ dotfiles_url_prefix_ssh }}/{{ item.value.repo_name }}
 
-- name: 'Clone {{ item.key }} dotfiles'
+# - debug:
+#     msg: >
+#       current_dotfile_local_dir: {{ current_dotfile_local_dir }}
+#       current_dotfile_repo_url_http: {{ current_dotfile_repo_url_http }}
+#       current_dotfile_repo_url_ssh: {{ current_dotfile_repo_url_ssh }}
+
+- name: 'gather facts about {{ item.key }} local subdirectory'
+  stat:
+    path: '{{ current_dotfile_local_dir }}'
+  register: dot_local
+
+- name: 'clone {{ item.key }} dotfiles'
+  when: (not dot_local.stat.isdir is defined) or (not dot_local.stat.isdir)
   git:
-    repo: '{{ item.value.repo_url }}'
-    dest: '{{ dotfiles_root_dir }}/{{ item.value.subdir_name }}'
+    repo: '{{ current_dotfile_repo_url_http }}'
+    dest: '{{ current_dotfile_local_dir }}'
+
+- name: 'gather facts about {{ item.key }} remote repository'
+  shell: 'git remote -v'
+  args:
+    chdir: '{{ current_dotfile_local_dir }}'
+  register: dot_remote
+  changed_when: false # normally registring on shell marks task as changed
+
+- name: 'set {{ item.key }} remote to use SSH remote url'
+  when: dotfiles_url_prefix_ssh not in dot_remote.stdout
+  shell: >-
+    git remote set-url origin 
+    '{{ current_dotfile_repo_url_ssh }}'
+  args:
+    chdir: '{{ current_dotfile_local_dir }}'
+
+- include: link_dotfiles.yml
+  with_items: "{{ item.value.links }}"
+  loop_control:
+    loop_var: dot_link
+
+# - name: 'connect all of {{ item.key }} dotfile symlinks'
+#   file:
+#     src: '{{ item.link_loc }}'
+#     dest: '{{ item.link_dest }}'
+#     state: link
+#     force: true
+#   with_items: '{{ item.value.links }}'
+
+
+
