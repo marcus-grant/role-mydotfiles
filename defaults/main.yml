@@ -2,4 +2,26 @@
 # defaults file for mydotfiles
 
 # dotfiles root directory, where all seperate dotfiles subdirectories go
-dotfiles_root_dir: "~/.dotfiles"
+dotfiles_root_dir: '~/.dotfiles'
+dotfiles_url_prefix: 'https://github.com/marcus-grant'
+# dotfiles_url_prefix: 'URL'
+
+dotfiles:
+  bash:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-bash'
+    subdir_name: 'bash'
+  vim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-vim'
+    subdir_name: 'vim'
+  neovim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-neovim'
+    subdir_name: 'neovim'
+  tmux:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-tmux'
+    subdir_name: 'tmux'
+  alacritty:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-alacritty'
+    subdir_name: 'alacritty'
+  i3:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-i3'
+    subdir_name: 'i3'

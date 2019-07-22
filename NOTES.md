@@ -370,7 +370,7 @@ So let's create a task inside of the `./tasks/main.yml`, the starting tasks file
 # tasks file for mydotfiles
 - name: "Root dotfiles directory dotfiles_root_dir exists"
   file:
-    path: "{{ dotfiles_root_dir }}"
+    path: '{{ dotfiles_root_dir }}'
     mode: 0750
     state: directory
 ```
@@ -388,7 +388,7 @@ Quick overview of the above defined task:
         - `directory` specifies that the directory exists
         - `absent` specifies that if anything is there it should be removed
     - The [ansible documentation][15] goes into much more details on the `file` module
-- `"{{ dotfiles_root_dir }}"`:
+- `'{{ dotfiles_root_dir }}'`:
     - It's an ansible variable to be defined later
     - The surrounding quotes are necessary to resolve the variable into a string
     - The surrounding curly braces are necessary to indicate this is a variable
@@ -413,14 +413,295 @@ Normally, from here you'd go back and refactor the code for both the role implem
 
 ### Using the Git Module to Clone Github Repositories
 
-Let's continue the TDD process, now that the directory all seperate github repositories will be cloned into exists, it's time to actually clone all of them. As usual start with a new test function that checks that my bash, vim, neovim, tmux, alacritty, and i3 dotfiles repositories have been cloned.
+Let's continue the TDD process, now that the directory all seperate github repositories will be cloned into exists, it's time to actually clone all of them. As usual start with a new test function that checks that my bash, vim, neovim, tmux, alacritty, and i3 dotfiles repositories have been cloned in `./molecule/default/tests/test_default.py`.
 
+```yaml
+# Test that files all git repositories are correctly downloaded
+def test_dotfiles_subdirectories_exist(host):
+    # first create the dotfiles path
+    dots_dir = host.user().home + '/.dotfiles'
+    # first create an array of strings with every expected subdirectory name
+    dot_subdirs = [
+        'bash',
+        'vim',
+        'neovim',
+        'tmux',
+        'alacritty',
+        'i3',
+    ]
+    # now iterate through each expected subdirectory and assert their existence
+    for subdir_name in dot_subdirs:
+        dot_subdir = dots_dir + '/' + subdir_name
+        assert host.file(dot_subdir).exists
+        assert host.file(dot_subdir).is_directory
+```
 
+Real quickly, `dots_dir` just creates the base path of `~/root/.dotfiles`. Then `dots_subdir` just creates a list of the expected subdirectories inside `dots_dir`. Then a loop iterates over those subdirectories, puts together the base path with the subdirectory name to be cloned. Finally it asserts they exist and are directories.
 
+Before finishing the red stage, make sure that this test case works by running `molecule verify`, it should fail. Then go into the test instance with `molecule login`, then use this command:
 
+```sh
+cd ~/.dotfiles && mkdir bash vim neovim tmux alacritty i3
+```
 
+This will just create the expected conditions manually so it can be verified that the test passes under the expected circumstances by running `exit` then `molecule verify`, it should pass. Now just reset the environment by running:
 
+```sh
+molecule destroy && molecule create && molecule converge
+```
 
+Now move onto the green phase by starting at the defaults variable file `./defaults/main.yml`:
+
+```yaml
+---
+# defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_root_dir: "~/.dotfiles"
+
+# bash dotfiles
+dotfiles_bash_repo_url: https://github.com/marcus-grant/dots-bash
+dotfiles_bash_subdir_name: bash
+
+# vim dotfiles
+dotfiles_vim_repo_url: https://github.com/marcus-grant/dots-vim
+dotfiles_vim_subdir_name: vim
+
+# neovim dotfiles
+dotfiles_neovim_repo_url: https://github.com/marcus-grant/dots-neovim
+dotfiles_neovim_subdir_name: neovim
+
+# tmux dotfiles
+dotfiles_tmux_repo_url: https://github.com/marcus-grant/dots-tmux
+dotfiles_tmux_subdir_name: tmux
+
+# alacritty dotfiles
+dotfiles_alacritty_repo_url: https://github.com/marcus-grant/dots-alacritty
+dotfiles_alacritty_subdir_name: alacritty
+
+# i3 dotfiles
+dotfiles_i3_repo_url: https://github.com/marcus-grant/dots-i3
+dotfiles_i3_subdir_name: i3
+```
+
+Normally variables should be prefixed by some reference to the role name, *i.e.* `dotfiles`. Then there's a increasing granularity about what the variable name references. Next, go back and edit the `./tasks/main.yml` to add tasks that clone all these repositories with the given variables:
+
+```yml
+---
+# tasks file for mydotfiles
+- name: Clone bash dotfiles
+  git:
+    repo: '{{ dotfiles_bash_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_bash_subdir_name }}'
+
+- name: Clone vim dotfiles
+  git:
+    repo: '{{ dotfiles_vim_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_vim_subdir_name }}'
+
+- name: Clone neovim dotfiles
+  git:
+    repo: '{{ dotfiles_neovim_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_neovim_subdir_name }}'
+
+- name: Clone tmux dotfiles
+  git:
+    repo: '{{ dotfiles_tmux_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_tmux_subdir_name }}'
+
+- name: Clone alacritty dotfiles
+  git:
+    repo: '{{ dotfiles_alacritty_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_alacritty_subdir_name }}'
+
+- name: Clone i3 dotfiles
+  git:
+    repo: '{{ dotfiles_i3_repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ dotfiles_i3_subdir_name }}'
+```
+
+Basically each new task does the same thing but with different variables. The [ansible git module][16] gets used to clone a repository defined in the variables previously to a destination that is a combination of the `dotfiles_root_dir` / `dotfiles_PROGRAM_subdir_name` directory. The reason each subdirectory gets their own name is to deal with the fact that my dotfiles repositories are all prefixed with `dots-` and locally I'd prefer they use a shorter name.
+
+Run the role using `molecule converge`, then verify it using `molecule verify`. The tests should be verifying the new role tasks are working. The green phase is done, now let's consider a refactor.
+
+In the previous task updates, a lot of the same tasks were repeated but with slightly different parameters. A good refactor here might be to make use of looping to reduce code and increase cleanliness. Go back and edit `./defaults/main.yml`:
+
+```yaml
+---
+# defaults file for mydotfiles
+
+# dotfiles root directory, where all seperate dotfiles subdirectories go
+dotfiles_root_dir: '~/.dotfiles'
+dotfiles_url_prefix: 'https://github.com/marcus-grant'
+
+dotfiles:
+  bash:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-bash'
+    subdir_name: 'bash'
+  vim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-vim'
+    subdir_name: 'vim'
+  neovim:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-neovim'
+    subdir_name: 'neovim'
+  tmux:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-tmux'
+    subdir_name: 'tmux'
+  alacritty:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-alacritty'
+    subdir_name: 'alacritty'
+  i3:
+    repo_url: '{{ dotfiles_url_prefix }}/dots-i3'
+    subdir_name: 'i3'
+```
+
+First, there's a new variable `dotfiles_url_prefix`, which is used to save the prefix of the URL to all the dotfile repositories. They all come from the same github user, me, so no point in repeating that substring constantly. Then all the repeating `repo_url` and `subdir_name` variables are brought into a dictionary.
+
+For example, accessing bash's `repo_url` of the bash dotfile, just use the variable reference `{{ dotfiles.bash.repo_url }}`. It's important to include the quotations when using variable template strings, and a common error happens in these kinds of variable substitutions.
+
+A good way of debugging these things is to temporarily insert an [ansible debug module][17]:
+
+```yaml
+- name: 'Check the dotfiles.bash.repo_url var'
+  debug:
+    msg: 'dotfiles.bash.repo_url: {{ dotfiles.bash.repo_url }}'
+```
+
+The dictionary layout of these repeating variable keys doesn't just look cleaner, but the fact that they're nested like this allows for iterating through them using [ansible loops][18].
+
+To make things easier, the tasks that are going to be looped for each individual dotfile configuration is going to get its own seperate task file, `./tasks/dotfile.yml`:
+
+```yaml
+---
+- name: 'Clone {{ item.key }} dotfiles'
+  git:
+    repo: '{{ item.value.repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ item.value.subdir_name }}'
+```
+
+You'll notice this task looks like one of the multiple tasks from before in `./tasks/main.yml`. The variables have been replaced by an `item` variable and its `key` & `value` along with the nested dictionary definitions created in the defaults file. More on the `item`, `key`, and `value` usage later. This task is what will be repeated with the different parts of the `dotfiles:` dictionary defined in the default variabls. Next return to the `./tasks/main.yml` file and edit it.
+
+```yaml
+---
+# tasks file for mydotfiles
+- name: "root dotfiles directory dotfiles_root_dir exists"
+  file:
+    path: '{{ dotfiles_root_dir }}'
+    mode: 0750
+    state: directory
+
+- name: transform dotfiles variable dictionary to iterable list
+  set_fact:
+    dotfiles_config_list: '{{ dotfiles | dict2items }}'
+  loop: "{{ dotfiles|dict2items }}"
+  when: item.value != ''
+
+# - name: debug dotfiles_config_list
+#   debug: { msg: 'dotfiles_config_list: {{ dotfiles_config_list }}' }
+
+- include: dotfile.yml
+  with_items: "{{ dotfiles_config_list }}"
+```
+
+Wow, much shorter than before. Let's go over it in a list overview:
+
+- `set_fact`: is another ansible module
+    - All it does is set a new variable, `dotfiles_config_list` with the below modules
+- `dict2items` is a [loop filter][18]
+    - Basically uses the loop in the task to iterate `dotfiles` keys to turn them, and all the nested things inside into an iterable list
+    - Below is an example
+    - The dictionary then becomes a list of dictionaries instead with its key behind `key`
+    - Each list item's value is then stored inside the item's `value` property
+    - This is then possible to iterate through and use the same nested variable names to apply different configuration tasks for each item
+- `loop`: gets used to iterate every dictionary key inside of `dotfiles`
+- `when`: is used to only iterate when the nested items are not empty
+- `include`: is an ansible module to include a tasks file, `dotfile.yml` defined before
+- `with_items`: is a module that treats the `dotfile.yml` tasks as a loop
+    - `dotfiles_config_list`'s items are passed as the variable `item` into the `dotfile.yml` tasks, where the `item` variable can be used to do the same with different values
+    - One such `item` value would be `item.value.subdir_name` is `bash` using the previously defined defaults
+
+```yaml
+dictionary:
+    propertyA: { propertyA1: a1, propertyA2: a2 }
+    propertyB: { propertyB1: b1, propertyB2: b2 }
+```
+*... becomes ...*
+```yaml
+dictionary:
+    - key: propertyA
+      value: { propertyA1: a1, propertyA2: a2 }
+    - key: propertyB
+      value: { propertyB1: b1, propertyB2: b2 }
+```
+
+I also included a commented out example of a debug task used to test the shape of the `dotfiles_config_list` variable that gets iterated by `dotfile.yml`. This is a somewhat complex transformation of data and it's likely it won't work on the first attempt. That's when modules like `debug` are very useful. Just use it with `molecule converge` and the output will show debug messages showing the shape of the data.
+
+This was a somewhat complex refactor, and ideally refactors should be pretty quick. Give yourself some extra time to learn things like this even though the TDD workflow is being used. Once structures like this are understood it shouldn't take that long in future refactor phases, or maybe even green ones to accomplish this sort of thing. Well, this TDD cycle has completed, let's handle the last two test cases for this role, and conclude.
+
+### Finishing Up the Role
+
+The dotfiles that were cloned are dotfiles that get updated often using git. By itself that's no problem, but people like me use SSH to communicate with git servers, and these repositories were cloned using HTTPS to not have to deal with complexities like ensuring SSH keys are managed.
+
+The next red phase is to define a test function that checks the remote URL of all the dotfile cloned directories are SSH URLs. Currently they look something like this:
+
+```sh
+git remote -v
+origin	https://github.com/marcus-grant/dots-bash (fetch)
+origin	https://github.com/marcus-grant/dots-bash (push)
+sh
+```
+
+When really it should look like this...
+
+```sh
+git remote -v
+origin	git@github.com:marcus-grant/dots-bash (fetch)
+origin	git@github.com:marcus-grant/dots-bash (push)
+```
+
+Let's update `./molecule/default/tests/test_default.py`:
+
+```python
+# Do all the cloned repositories have ssh remote origins?
+def test_dotfiles_remote_origin_uses_ssh(host):
+    # first create the dotfiles path
+    dots_dir = host.user().home + '/.dotfiles'
+    # create an array of strings with all expected subdirectory names
+    dot_subdirs = [
+        'bash',
+        'vim',
+        'neovim',
+        'tmux',
+        'alacritty',
+        'i3',
+    ]
+    # map all of the subdirectory names to be full paths using dots_dir
+    dot_dirs_iter = map(lambda x: '{}/{}'.format(dots_dir, x), dot_subdirs)
+    # iterate through all the paths to check if it has an ssh remote
+    for dot_dir in dot_dirs_iter:
+        # first format the command string to be used
+        cmd = host.run('cd {} && git remote -v'.format(dot_dir))
+        # first check that no error occured in running the command
+        assert cmd.rc == 0
+        # then check that there's an origin and a ssh git address
+        assert 'origin' in cmd.stdout
+        assert 'git@github.com' in cmd.stdout
+```
+
+Basically, the same dotfiles directory paths are created again using template string and stored in `dot_dirs_iter` as a python iterator. This means all the directories can easily be iterated with their complete paths as `dot_dir`. Then the `testinfra` module `run` is used to change into the current `dot_dir` and running the git command `git remote -v` so the results can be tested.
+
+First, the command should actually run successfully which is indicated by its return code, or `rc` being 0. Then the `stdout` of the command should contain both `origin` and the github ssh base address of `git@github.com`. To test that this test case will actually detect a properly changed remote, `molecule login` into the instance, change to the bash directory at `~/.dotfiles/bash` and use this command to set the git remote to its ssh equivalent.
+
+```sh
+git remote set-url origin git@github.com:marcus-grant/dots-bash.git
+```
+
+Exit the instance with `exit`, `molecule verify` to verify that the assertion doesn't fail when testing the `bash` subdirectory. It should however still fail on the next dotfiles subdirectory which should be `vim`. Let's move onto the green phase since the test case should now work.
+
+Go back to `./tasks/dotfile.yml` because this is something that needs to be done for each dotfile set.
+
+```yaml
+```
 
 
 References
@@ -441,6 +722,9 @@ References
 13. [Hackernoon: Introduction to Test Driven Development][13]
 14. [TestInfra Documentation: File Class][14]
 15. [Ansible Documentation: File Module][15]
+16. [Ansible Documentation: Git Module][16]
+17. [Ansible Documentation: Debug Module][17]
+18. [Ansible Documentation: Loops][18]
 
 50. [Github: nvm-sh/nvm][50]
 
@@ -462,6 +746,10 @@ References
 [13]: https://hackernoon.com/introduction-to-test-driven-development-tdd-61a13bc92d92 "Hackernoon: Introduction to Test Driven Development"
 [14]: https://testinfra.readthedocs.io/en/latest/modules.html#file "TestInfra Documentation: File Class"
 [15]: https://docs.ansible.com/ansible/latest/modules/file_module.html "Ansible Documentation: File Module"
+[16]: https://docs.ansible.com/ansible/latest/modules/git_module.html "Ansible Documentation: Git Module"
+[17]: https://docs.ansible.com/ansible/latest/modules/debug_module.html "Ansible Documentation: Debug Module"
+[18]: https://docs.ansible.com/ansible/latest/user_guide/playbooks_loops.html#iterating-over-a-dictionary "Ansible Documentation: Loops"
+
 
 [50]: https://github.com/nvm-sh/nvm "Github: nvm-sh/nvm"
 

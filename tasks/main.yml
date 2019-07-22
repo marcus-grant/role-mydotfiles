@@ -2,9 +2,21 @@
 # tasks file for mydotfiles
 # - name: "Debug: {{ ansible_env.HOME }}/{{ dotfiles_root_dir }}"
 #   debug:
-#     msg: "Dotfiles dir {{ dotfiles_root_dir }}"
-- name: "Root dotfiles directory dotfiles_root_dir exists"
+- name: "root dotfiles directory dotfiles_root_dir exists"
   file:
-    path: "{{ dotfiles_root_dir }}"
+    path: '{{ dotfiles_root_dir }}'
     mode: 0750
     state: directory
+
+- name: transform dotfiles variable dictionary to iterable list
+  set_fact:
+    dotfiles_config_list: '{{ dotfiles | dict2items }}'
+  loop: "{{ dotfiles|dict2items }}"
+  when: item.value != ''
+
+# - name: debug dotfiles_config_list
+#   debug: { msg: 'dotfiles_config_list: {{ dotfiles_config_list }}' }
+
+- include: dotfile.yml
+  with_items: "{{ dotfiles_config_list }}"
+

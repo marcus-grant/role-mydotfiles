@@ -1,0 +1,8 @@
+---
+# - name: debug current dotfile configuration
+#   debug: { msg: '{{ item.key }}: {{ item.value.repo_url }}' }
+
+- name: 'Clone {{ item.key }} dotfiles'
+  git:
+    repo: '{{ item.value.repo_url }}'
+    dest: '{{ dotfiles_root_dir }}/{{ item.value.subdir_name }}'
