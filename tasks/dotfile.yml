@@ -30,12 +30,12 @@
   args:
     chdir: '{{ current_dotfile_local_dir }}'
   register: dot_remote
-  changed_when: false # normally registring on shell marks task as changed
+  changed_when: false  # normally registring on shell marks task as changed
 
 - name: 'set {{ item.key }} remote to use SSH remote url'
   when: dotfiles_url_prefix_ssh not in dot_remote.stdout
   shell: >-
-    git remote set-url origin 
+    git remote set-url origin
     '{{ current_dotfile_repo_url_ssh }}'
   args:
     chdir: '{{ current_dotfile_local_dir }}'
@@ -52,6 +52,3 @@
 #     state: link
 #     force: true
 #   with_items: '{{ item.value.links }}'
-
-
-
