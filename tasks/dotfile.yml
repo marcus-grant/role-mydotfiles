@@ -35,7 +35,8 @@
   changed_when: false  # normally registring on shell marks task as changed
 
 - name: 'set {{ item.key }} remote to use SSH remote url'
-  when: current_dotfile_repo_url_ssh not in dot_remote.stdout
+  when: >
+    dotfiles_use_ssh and current_dotfile_repo_url_ssh not in dot_remote.stdout
   shell: >-
     git remote set-url origin
     '{{ current_dotfile_repo_url_ssh }}'

@@ -5,6 +5,7 @@
 dotfiles_local_root_dir: '~/.dotfiles'
 dotfiles_git_server_base_url: 'github.com'
 dotfiles_git_username: 'marcus-grant'
+dotfiles_use_ssh: true
 
 dotfiles:
   bash:
