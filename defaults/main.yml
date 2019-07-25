@@ -3,9 +3,8 @@
 
 # dotfiles root directory, where all seperate dotfiles subdirectories go
 dotfiles_local_root_dir: '~/.dotfiles'
-dotfiles_url_prefix_https: 'https://github.com/marcus-grant'
-dotfiles_url_prefix_ssh: 'git@github.com:marcus-grant'
-# dotfiles_url_prefix: 'URL'
+dotfiles_git_server_base_url: 'github.com'
+dotfiles_git_username: 'marcus-grant'
 
 dotfiles:
   bash:

@@ -3,16 +3,18 @@
   set_fact:
     current_dotfile_local_dir: >-
       {{ dotfiles_local_root_dir }}/{{ item.value.local_subdir_name }}
-    current_dotfile_repo_url_http: >-
-      {{ dotfiles_url_prefix_https }}/{{ item.value.repo_name }}
-    current_dotfile_repo_url_ssh: >-
-      {{ dotfiles_url_prefix_ssh }}/{{ item.value.repo_name }}
+    current_dotfile_repo_url_http: "\
+      https://{{ dotfiles_git_server_base_url }}/\
+      {{ dotfiles_git_username }}/{{ item.value.repo_name }}"
+    current_dotfile_repo_url_ssh: "\
+      git@{{ dotfiles_git_server_base_url }}:\
+      {{ dotfiles_git_username }}/{{ item.value.repo_name }}"
 
-# - debug:
-#     msg: >
-#       current_dotfile_local_dir: {{ current_dotfile_local_dir }}
-#       current_dotfile_repo_url_http: {{ current_dotfile_repo_url_http }}
-#       current_dotfile_repo_url_ssh: {{ current_dotfile_repo_url_ssh }}
+- debug:
+    msg: >
+      current_dotfile_local_dir: {{ current_dotfile_local_dir }}
+      current_dotfile_repo_url_http: {{ current_dotfile_repo_url_http }}
+      current_dotfile_repo_url_ssh: {{ current_dotfile_repo_url_ssh }}
 
 - name: 'gather facts about {{ item.key }} local subdirectory'
   stat:
@@ -33,7 +35,7 @@
   changed_when: false  # normally registring on shell marks task as changed
 
 - name: 'set {{ item.key }} remote to use SSH remote url'
-  when: dotfiles_url_prefix_ssh not in dot_remote.stdout
+  when: current_dotfile_repo_url_ssh not in dot_remote.stdout
   shell: >-
     git remote set-url origin
     '{{ current_dotfile_repo_url_ssh }}'
