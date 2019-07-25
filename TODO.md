@@ -1,9 +1,9 @@
 TODOs
 =====
 
-- [ ] Add bool variable that determines if cloned repos should be using HTTPS or SSH
-- [ ] Improve the variables used here, computed vars
-    - [ ] split out base remote addresses from username
+- [ ] Add more platform testing & include detailed writing in notes for future article
+- [ ] Move todo items from old repo regarding dev environment to the workstation playbook
+    - This will involve moving some of those into new roles addressing specific aspects
 - [ ] Remove NVM/Node tasks and variables to its own role
 - [ ] Consider creating a standardized place for custom binaries like `~/.local/bin` or `~/bin`
 - [ ] Consider downloading and untarring [junegunn/fzf-bin](http://bit.ly/2l7rgmv) instead to simplify conflicts with `GOPATH` & goenv
@@ -63,6 +63,9 @@ Future
 Completed
 =========
 
+- [x] Add bool variable that determines if cloned repos should be using HTTPS or SSH
+- [x] Improve the variables used here, computed vars
+    - [x] split out base remote addresses from username
 - [x] Create filtered repo for i3 dotfiles `eb1ac46`
 - [x] Update clone repos task to clone i3 properly `eb1ac46`
 - [x] Create `link_i3_dotfiles` task `eb1ac46`

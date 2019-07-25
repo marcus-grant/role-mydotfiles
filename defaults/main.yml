@@ -11,6 +11,7 @@ dotfiles:
   bash:
     repo_name: 'dots-bash'
     local_subdir_name: 'bash'
+    version: 'master'
     links:
       - { dest: '~/.bashrc', src: '~/.dotfiles/bash/bashrc' }
       - { dest: '~/.profile', src: '~/.dotfiles/bash/profile' }
@@ -18,27 +19,32 @@ dotfiles:
   vim:
     repo_name: 'dots-vim'
     local_subdir_name: 'vim'
+    version: 'master'
     links:
       - { dest: '~/.vim', src: '~/.dotfiles/vim' }
       - { dest: '~/.vimrc', src: '~/.dotfiles/vim/vimrc' }
   neovim:
     repo_name: 'dots-neovim'
     local_subdir_name: 'neovim'
+    version: 'master'
     links:
       - { dest: '~/.config/nvim', src: '~/.dotfiles/neovim' }
   tmux:
     repo_name: 'dots-tmux'
     local_subdir_name: 'tmux'
+    version: 'master'
     links:
       - { dest: '~/.tmux.conf', src: '~/.dotfiles/tmux/.tmux.conf' }
       - { dest: '~/.tmux.conf.local', src: '~/.dotfiles/tmux/.tmux.conf.local' }
   alacritty:
     repo_name: 'dots-alacritty'
     local_subdir_name: 'alacritty'
+    version: 'master'
     links:
       - { dest: '~/.config/alacritty', src: '~/.dotfiles/alacritty' }
   i3:
     repo_name: 'dots-i3'
     local_subdir_name: 'i3'
+    version: 'master'
     links:
       - { dest: '~/.config/i3', src: '~/.dotfiles/i3' }
