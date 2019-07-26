@@ -1,6 +1,8 @@
 TODOs
 =====
 
+- [ ] Add a handler with an enable variable to source bash/profile
+    - Some following roles might depend on its env vars
 - [ ] Add more platform testing & include detailed writing in notes for future article
 - [ ] Move todo items from old repo regarding dev environment to the workstation playbook
     - This will involve moving some of those into new roles addressing specific aspects
