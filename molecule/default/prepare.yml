@@ -2,7 +2,15 @@
 - name: Converge
   hosts: all
   tasks:
-  - name: Git is installed
+  - name: git is installed
     package:
       name: git
+      state: present
+  - name: fzf is installed
+    package:
+      name: fzf
+      state: present
+  - name: vim is installed
+    package:
+      name: vim
       state: present

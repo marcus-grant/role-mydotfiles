@@ -1,11 +1,14 @@
 TODOs
 =====
 
+- [ ] Debian FZF config (read docs on github & in `/usr/share/doc/fzf`)
 - [ ] Add a handler with an enable variable to source bash/profile
     - Some following roles might depend on its env vars
 - [ ] Add more platform testing & include detailed writing in notes for future article
+- [ ] Arch FZF config (read docs on github & in `/usr/share/doc/fzf`)
 - [ ] Move todo items from old repo regarding dev environment to the workstation playbook
     - This will involve moving some of those into new roles addressing specific aspects
+- [ ] Look @ FZF docs and add useful bash/vim/tmux tricks
 - [ ] Remove NVM/Node tasks and variables to its own role
 - [ ] Consider creating a standardized place for custom binaries like `~/.local/bin` or `~/bin`
 - [ ] Consider downloading and untarring [junegunn/fzf-bin](http://bit.ly/2l7rgmv) instead to simplify conflicts with `GOPATH` & goenv

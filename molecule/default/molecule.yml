@@ -8,8 +8,8 @@ lint:
   options:
     config-file: .yamllint
 platforms:
-  - name: instance
-    image: centos:7
+  - name: debian-instance
+    image: debian:buster
 provisioner:
   name: ansible
   lint:
