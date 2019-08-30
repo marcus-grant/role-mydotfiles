@@ -1,7 +1,6 @@
 TODOs
 =====
 
-- [ ] Debian FZF config (read docs on github & in `/usr/share/doc/fzf`)
 - [ ] Add a handler with an enable variable to source bash/profile
     - Some following roles might depend on its env vars
 - [ ] Add more platform testing & include detailed writing in notes for future article
@@ -68,6 +67,7 @@ Future
 Completed
 =========
 
+- [x] Debian FZF config (read docs on github & in `/usr/share/doc/fzf`)
 - [x] Add bool variable that determines if cloned repos should be using HTTPS or SSH
 - [x] Improve the variables used here, computed vars
     - [x] split out base remote addresses from username
