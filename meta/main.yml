@@ -13,6 +13,8 @@ galaxy_info:
 
   github_branch: master
 
+  allow_duplicates: true
+
   #
   # platforms is a list of platforms, and each platform has a name and a list of versions.
   #
