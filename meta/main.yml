@@ -43,7 +43,8 @@ galaxy_info:
 
   galaxy_tags:
     - dotfile
-    - git
+    - dotfiles
+    - dots
 
 allow_duplicates: true
 
